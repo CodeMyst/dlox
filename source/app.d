@@ -51,8 +51,10 @@ void run(string source)
     Scanner scanner = new Scanner(source);
     Token[] tokens = scanner.scanTokens();
 
-    foreach (Token token; tokens)
-    {
-        writeln(token);
-    }
+    Parser parser = new Parser(tokens);
+    Expr expression = parser.parse();
+
+    if (hadError) return;
+
+    writeln(new AstPrinter().print(expression));
 }
