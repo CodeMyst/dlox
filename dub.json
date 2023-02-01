@@ -1,0 +1,9 @@
+{
+	"authors": [
+		"CodeMyst"
+	],
+	"copyright": "Copyright © 2023, CodeMyst",
+	"description": "Lox interpreter/compiler written in D.",
+	"license": "MIT",
+	"name": "dlox"
+}

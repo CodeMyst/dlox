@@ -1,0 +1,15 @@
+// hello world
+
+/*
+ * epik block comment
+ */
+
+"some string"
+
+/*
+ * /* nested comment
+ *  * epik nested
+ *  */
+ */
+
+"another string"
