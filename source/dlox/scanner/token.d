@@ -1,8 +1,8 @@
-module dlox.token;
+module dlox.scanner.token;
 
 import std.variant;
 
-import dlox.token_type;
+import dlox.scanner.token_type;
 
 class Token
 {

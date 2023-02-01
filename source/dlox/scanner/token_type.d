@@ -1,4 +1,4 @@
-module dlox.token_type;
+module dlox.scanner.token_type;
 
 enum TokenType
 {

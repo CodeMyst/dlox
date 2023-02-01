@@ -1,9 +1,9 @@
-module dlox.scanner;
+module dlox.scanner.scanner;
 
 import std.variant;
 
-import dlox.token;
-import dlox.token_type;
+import dlox.scanner.token;
+import dlox.scanner.token_type;
 import dlox.error;
 
 class Scanner
