@@ -4,7 +4,7 @@ import std.variant;
 
 import dlox.error;
 import dlox.scanner;
-import dlox.parser.expression;
+import dlox.parser;
 
 class Parser
 {
@@ -16,22 +16,119 @@ class Parser
         this.tokens = tokens;
     }
 
-    public Expr parse()
+    public Stmt[] parse()
+    {
+        Stmt[] statements;
+        while (!isAtEnd())
+        {
+            statements ~= declaration();
+        }
+
+        return statements;
+    }
+
+    // declaration → varDecl
+    //             | statement ;
+    private Stmt declaration()
     {
         try
         {
-            return expression();
+            if (match(TokenType.VAR)) return varDeclaration();
+
+            return statement();
         }
-        catch (ParseError err)
+        catch (ParseError error)
         {
+            synchronize();
             return null;
         }
     }
 
-    // expression → equality ;
+    // varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
+    private Stmt varDeclaration()
+    {
+        Token name = consume(TokenType.IDENTIFIER, "Expect variable name.");
+
+        Expr initializer = null;
+        if (match(TokenType.EQUAL)) initializer = expression();
+
+        consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.");
+
+        return new Stmt.Var(name, initializer);
+    }
+
+    // statement → exprStmt
+    //           | printStmt
+    //           | block ;
+    private Stmt statement()
+    {
+        if (match(TokenType.PRINT)) return printStatement();
+        if (match(TokenType.LEFT_BRACE)) return new Stmt.Block(block());
+
+        return expressionStatement();
+    }
+
+    // printStmt → "print" expression ";" ;
+    private Stmt printStatement()
+    {
+        Expr value = expression();
+
+        consume(TokenType.SEMICOLON, "Expect ';' after value.");
+
+        return new Stmt.Print(value);
+    } 
+
+    // block → "{" declaration* "}" ;
+    private Stmt[] block()
+    {
+        Stmt[] statements;
+
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd())
+        {
+            statements ~= declaration();
+        }
+
+        consume(TokenType.RIGHT_BRACE, "Expect '}' after block.");
+        return statements;
+    }
+
+    // exprStmt → expression ";" ;
+    private Stmt expressionStatement()
+    {
+        Expr expr = expression();
+
+        consume(TokenType.SEMICOLON, "Expect ';' after expression.");
+
+        return new Stmt.Expression(expr);
+    }
+
+    // expression → assignment ;
     private Expr expression()
     {
-        return equality();
+        return assignment();
+    }
+
+    // assignment → IDENTIFIER "=" assignment
+    //            | equality ;
+    private Expr assignment()
+    {
+        Expr expr = equality();
+
+        if (match(TokenType.EQUAL))
+        {
+            Token equals = previous();
+            Expr value = assignment();
+
+            if (auto exprVar = cast(Expr.Variable) expr)
+            {
+                Token name = exprVar.name;
+                return new Expr.Assign(name, value);
+            }
+
+            error(equals, "Invalid assignment target.");
+        }
+
+        return expr;
     }
 
     // equality → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -114,17 +211,17 @@ class Parser
     }
 
     // primary → NUMBER | STRING | "true" | "false" | "nil"
-    //         | "(" expression ")" ;
+    //         | "(" expression ")"
+    //         | IDENTIFIER ;
     private Expr primary()
     {
         if (match(TokenType.FALSE)) return new Expr.Literal(Variant(false));
         if (match(TokenType.TRUE)) return new Expr.Literal(Variant(true));
         if (match(TokenType.NIL)) return new Expr.Literal(Variant(null));
 
-        if (match(TokenType.NUMBER, TokenType.STRING))
-        {
-            return new Expr.Literal(previous().literal);
-        }
+        if (match(TokenType.NUMBER, TokenType.STRING)) return new Expr.Literal(previous().literal);
+
+        if (match(TokenType.IDENTIFIER)) return new Expr.Variable(previous());
 
         if (match(TokenType.LEFT_PAREN))
         {

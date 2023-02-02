@@ -58,9 +58,9 @@ void run(string source)
     Token[] tokens = scanner.scanTokens();
 
     Parser parser = new Parser(tokens);
-    Expr expression = parser.parse();
+    Stmt[] statements = parser.parse();
 
     if (hadError) return;
 
-    interpreter.interpret(expression);
+    interpreter.interpret(statements);
 }

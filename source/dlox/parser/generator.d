@@ -1,4 +1,4 @@
-module dlox.parser.expression;
+module dlox.parser.generator;
 
 import std.typecons;
 import std.array;
@@ -7,15 +7,24 @@ import std.variant;
 
 import dlox.scanner;
 
-string GenerateAst(string BaseName)()
-{
-    const string[] types = [
-        "Binary   : Expr left, Token operator, Expr right",
-        "Grouping : Expr expression",
-        "Literal  : Variant value",
-        "Unary    : Token operator, Expr right"
-    ];
+const string[] expressionTypes = [
+    "Assign   : Token name, Expr value",
+    "Binary   : Expr left, Token operator, Expr right",
+    "Grouping : Expr expression",
+    "Literal  : Variant value",
+    "Unary    : Token operator, Expr right",
+    "Variable : Token name"
+];
 
+const string[] statementTypes = [
+    "Block      : Stmt[] statements",
+    "Expression : Expr expression",
+    "Print      : Expr expression",
+    "Var        : Token name, Expr initializer"
+];
+
+string GenerateAst(string BaseName, string[] types)()
+{
     string res = "abstract class " ~ BaseName ~ "{";
 
     res ~= "interface Visitor {";
@@ -64,4 +73,5 @@ string GenerateAst(string BaseName)()
     return res;
 }
 
-mixin(GenerateAst!("Expr"));
+mixin(GenerateAst!("Expr", expressionTypes));
+mixin(GenerateAst!("Stmt", statementTypes));

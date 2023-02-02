@@ -8,20 +8,69 @@ import std.algorithm;
 import dlox.error;
 import dlox.scanner;
 import dlox.parser;
+import dlox.interpreter.environment;
 
-class Interpreter : Expr.Visitor
+class Interpreter : Expr.Visitor, Stmt.Visitor
 {
-    public void interpret(Expr expression)
+    private Environment environment = new Environment();
+
+    public void interpret(Stmt[] statements)
     {
         try
         {
-            Variant value = evaluate(expression);
-            writeln(stringify(value));
+            foreach (Stmt statement; statements)
+            {
+                execute(statement);
+            }
         }
         catch (RuntimeError error)
         {
             runtimeError(error);
         }
+    }
+
+    public override Variant visitExpressionStmt(Stmt.Expression stmt)
+    {
+        evaluate(stmt.expression);
+        return Variant(null);
+    }
+
+    public override Variant visitPrintStmt(Stmt.Print stmt)
+    {
+        Variant value = evaluate(stmt.expression);
+        writeln(stringify(value));
+        return Variant(null);
+    }
+
+    public override Variant visitBlockStmt(Stmt.Block stmt)
+    {
+        executeBlock(stmt.statements, new Environment(environment));
+        return Variant(null);
+    }
+
+    public override Variant visitVarStmt(Stmt.Var stmt)
+    {
+        Variant value = Variant(null);
+        if (stmt.initializer !is null)
+        {
+            value = evaluate(stmt.initializer);
+        }
+
+        environment.define(stmt.name.lexeme, value);
+
+        return Variant(null);
+    }
+
+    public override Variant visitAssignExpr(Expr.Assign expr)
+    {
+        Variant value = evaluate(expr.value);
+        environment.assign(expr.name, value);
+        return value;
+    }
+
+    public override Variant visitVariableExpr(Expr.Variable expr)
+    {
+        return environment.get(expr.name);
     }
 
     public override Variant visitLiteralExpr(Expr.Literal expr)
@@ -105,6 +154,26 @@ class Interpreter : Expr.Visitor
     private Variant evaluate(Expr expr)
     {
         return expr.accept(this);
+    }
+
+    private void execute(Stmt stmt)
+    {
+        stmt.accept(this);
+    }
+
+    private void executeBlock(Stmt[] statements, Environment environment)
+    {
+        Environment previous = this.environment;
+        try
+        {
+            this.environment = environment;
+
+            foreach (Stmt statement; statements) execute(statement);
+        }
+        finally
+        {
+            this.environment = previous;
+        }
     }
 
     private bool isTruthy(Variant obj)
