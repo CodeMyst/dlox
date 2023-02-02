@@ -5,4 +5,3 @@ class ParseError : Exception {
         super("", file, line, nextInChain);
     }
 }
-
