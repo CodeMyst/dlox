@@ -1,0 +1,12 @@
+print clock;
+
+var start = clock();
+
+print "starting long action";
+
+var i = 0;
+while (i < 3000000) i = i + 1;
+
+var end = clock();
+
+print "elapsed seconds: " + (end - start);

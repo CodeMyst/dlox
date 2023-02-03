@@ -10,6 +10,7 @@ import dlox.scanner;
 const string[] expressionTypes = [
     "Assign   : Token name, Expr value",
     "Binary   : Expr left, Token operator, Expr right",
+    "Call     : Expr callee, Token paren, Expr[] arguments",
     "Grouping : Expr expression",
     "Literal  : Variant value",
     "Logical  : Expr left, Token operator, Expr right",
@@ -20,6 +21,7 @@ const string[] expressionTypes = [
 const string[] statementTypes = [
     "Block      : Stmt[] statements",
     "Expression : Expr expression",
+    "Function   : Token name, Token[] params, Stmt[] body",
     "If         : Expr condition, Stmt thenBranch, Stmt elseBranch",
     "Print      : Expr expression",
     "Var        : Token name, Expr initializer",

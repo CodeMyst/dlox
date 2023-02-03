@@ -8,12 +8,30 @@ import std.algorithm;
 import dlox.error;
 import dlox.scanner;
 import dlox.parser;
-import dlox.interpreter.environment;
-import dlox.interpreter.break_exception;
+import dlox.interpreter;
 
 class Interpreter : Expr.Visitor, Stmt.Visitor
 {
-    private Environment environment = new Environment();
+    public Environment globals = new Environment();
+    public Environment environment;
+
+    public this()
+    {
+        environment = globals;
+
+        globals.define("clock", new class Callable {
+            override int arity() => 0;
+
+            override Variant call(Interpreter interpreter, Variant[] arguments)
+            {
+                import std.datetime : Clock, convert;
+
+                return Variant(cast(double) convert!("hnsecs", "msecs")(Clock.currStdTime()) / 1000.0);
+            }
+
+            override string toString() const => "<native fn clock>";
+        }.to!Variant());
+    }
 
     public void interpret(Stmt[] statements)
     {
@@ -28,6 +46,14 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
         {
             runtimeError(error);
         }
+    }
+
+    public override Variant visitFunctionStmt(Stmt.Function stmt)
+    {
+        Fun fun = new Fun(stmt);
+        environment.define(stmt.name.lexeme, Variant(fun));
+
+        return Variant(null);
     }
 
     public override Variant visitExpressionStmt(Stmt.Expression stmt)
@@ -140,6 +166,32 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
         }
     }
 
+    public override Variant visitCallExpr(Expr.Call expr)
+    {
+        Variant callee = evaluate(expr.callee);
+
+        Variant[] arguments;
+        foreach (argument; expr.arguments)
+        {
+            arguments ~= evaluate(argument);
+        }
+
+        if (!callee.convertsTo!Callable)
+        {
+            throw new RuntimeError(expr.paren, "Can only call functions and classes.");
+        }
+
+        Callable fun = callee.get!Callable();
+        if (arguments.length != fun.arity())
+        {
+            throw new RuntimeError(expr.paren, "Expected " ~
+                fun.arity().to!string ~ " arguments but got " ~
+                arguments.length.to!string() ~ ".");
+        }
+
+        return fun.call(this, arguments);
+    }
+
     public override Variant visitBinaryExpr(Expr.Binary expr)
     {
         Variant left = evaluate(expr.left);
@@ -202,7 +254,7 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
         stmt.accept(this);
     }
 
-    private void executeBlock(Stmt[] statements, Environment environment)
+    public void executeBlock(Stmt[] statements, Environment environment)
     {
         Environment previous = this.environment;
         try

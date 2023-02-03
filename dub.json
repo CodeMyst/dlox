@@ -5,5 +5,8 @@
 	"copyright": "Copyright © 2023, CodeMyst",
 	"description": "Lox interpreter/compiler written in D.",
 	"license": "MIT",
-	"name": "dlox"
+	"name": "dlox",
+	"dflags": [
+		"-preview=shortenedMethods"
+	]
 }

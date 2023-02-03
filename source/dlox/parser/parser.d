@@ -29,12 +29,14 @@ class Parser
         return statements;
     }
 
-    // declaration → varDecl
+    // declaration → funDecl
+    //             | varDecl
     //             | statement ;
     private Stmt declaration()
     {
         try
         {
+            if (match(TokenType.FUN)) return fun("function");
             if (match(TokenType.VAR)) return varDeclaration();
 
             return statement();
@@ -44,6 +46,34 @@ class Parser
             synchronize();
             return null;
         }
+    }
+
+    private Stmt.Function fun(string kind)
+    {
+        Token name = consume(TokenType.IDENTIFIER, "Expect " ~ kind ~ " name.");
+        consume(TokenType.LEFT_PAREN, "Expect ')' after " ~ kind ~ " name.");
+
+        Token[] parameters;
+        if (!check(TokenType.RIGHT_PAREN))
+        {
+            do
+            {
+                if (parameters.length >= 255)
+                {
+                    error(peek(), "Can't have more than 255 parameters.");
+                }
+
+                parameters ~= consume(TokenType.IDENTIFIER, "Expect parameter name.");
+            } while (match(TokenType.COMMA));
+        }
+
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
+
+        consume(TokenType.LEFT_BRACE, "Expect '{' before " ~ kind ~ " body.");
+
+        Stmt[] body = block();
+
+        return new Stmt.Function(name, parameters, body);
     }
 
     // varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
@@ -333,7 +363,7 @@ class Parser
     }
 
     // unary → ( "!" | "-" ) unary
-    //       | primary ;
+    //       | call ;
     private Expr unary()
     {
         if (match(TokenType.BANG, TokenType.MINUS))
@@ -344,7 +374,39 @@ class Parser
             return new Expr.Unary(operator, right);
         }
 
-        return primary();
+        return call();
+    }
+
+    // call → primary ( "(" arguments? ")" )* ;
+    private Expr call()
+    {
+        Expr expr = primary();
+
+        while (true)
+        {
+            if (match(TokenType.LEFT_PAREN)) expr = finishCall(expr);
+            else break;
+        }
+
+        return expr;
+    }
+
+    private Expr finishCall(Expr callee)
+    {
+        Expr[] arguments;
+        if (!check(TokenType.RIGHT_PAREN))
+        {
+            do
+            {
+                if (arguments.length >= 255) error(peek(), "Can't have more than 255 arguments.");
+
+                arguments ~= expression();
+            } while (match(TokenType.COMMA));
+        }
+
+        Token paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
+
+        return new Expr.Call(callee, paren, arguments);
     }
 
     // primary → NUMBER | STRING | "true" | "false" | "nil"

@@ -1,0 +1,14 @@
+fun sayHi(first, last) {
+    print "Hi, " + first + " " + last + "!";
+}
+
+fun sayHiRecursive(first, last, times, i) {
+    if (i < times) {
+        sayHi(first, last);
+        sayHiRecursive(first, last, times, i + 1);
+    }
+}
+
+print sayHi;
+
+sayHiRecursive("Code", "Myst", 10, 0);
