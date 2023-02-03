@@ -11,6 +11,8 @@ class Parser
     private Token[] tokens;
     private int current = 0;
 
+    private int loopDepth = 0;
+
     public this(Token[] tokens)
     {
         this.tokens = tokens;
@@ -62,6 +64,7 @@ class Parser
     //           | ifStmt
     //           | printStmt
     //           | whileStmt
+    //           | breakStmt
     //           | block ;
     private Stmt statement()
     {
@@ -69,6 +72,7 @@ class Parser
         if (match(TokenType.IF)) return ifStatement();
         if (match(TokenType.PRINT)) return printStatement();
         if (match(TokenType.WHILE)) return whileStatement();
+        if (match(TokenType.BREAK)) return breakStatement();
         if (match(TokenType.LEFT_BRACE)) return new Stmt.Block(block());
 
         return expressionStatement();
@@ -95,9 +99,19 @@ class Parser
         consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.");
         Expr condition = expression();
         consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.");
-        Stmt body = statement();
 
-        return new Stmt.While(condition, body);
+        try
+        {
+            loopDepth++;
+
+            Stmt body = statement();
+
+            return new Stmt.While(condition, body);
+        }
+        finally
+        {
+            loopDepth--;
+        }
     }
 
     // forStmt → "for" "(" ( varDecl | exprStmt | ";" )
@@ -122,22 +136,41 @@ class Parser
 
         consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.");
 
-        Stmt body = statement();
-
-        if (increment !is null)
+        try
         {
-            body = new Stmt.Block([body, new Stmt.Expression(increment)]);
+            loopDepth++;
+
+            Stmt body = statement();
+
+            if (increment !is null)
+            {
+                body = new Stmt.Block([body, new Stmt.Expression(increment)]);
+            }
+
+            if (condition is null) condition = new Expr.Literal(Variant(true));
+            body = new Stmt.While(condition, body);
+
+            if (initializer !is null)
+            {
+                body = new Stmt.Block([initializer, body]);
+            }
+
+            return body;
         }
-
-        if (condition is null) condition = new Expr.Literal(Variant(true));
-        body = new Stmt.While(condition, body);
-
-        if (initializer !is null)
+        finally
         {
-            body = new Stmt.Block([initializer, body]);
+            loopDepth--;
         }
+    }
 
-        return body;
+    // breakStmt → "break" ;
+    private Stmt breakStatement()
+    {
+        if (loopDepth == 0) error(previous(), "Must be inside a loop to use 'break'.");
+
+        consume(TokenType.SEMICOLON, "Expect ';' after 'break'.");
+
+        return new Stmt.Break();
     }
 
     // printStmt → "print" expression ";" ;

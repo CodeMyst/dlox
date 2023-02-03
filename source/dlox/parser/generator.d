@@ -23,7 +23,8 @@ const string[] statementTypes = [
     "If         : Expr condition, Stmt thenBranch, Stmt elseBranch",
     "Print      : Expr expression",
     "Var        : Token name, Expr initializer",
-    "While      : Expr condition, Stmt body"
+    "While      : Expr condition, Stmt body",
+    "Break      : "
 ];
 
 string GenerateAst(string BaseName, string[] types)()

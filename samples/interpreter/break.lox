@@ -1,0 +1,10 @@
+var i = 0;
+while (true) {
+    print i;
+
+    if (i >= 10) {
+        break;
+    }
+
+    i = i + 1;
+}

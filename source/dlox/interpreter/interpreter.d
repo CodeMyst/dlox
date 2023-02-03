@@ -9,6 +9,7 @@ import dlox.error;
 import dlox.scanner;
 import dlox.parser;
 import dlox.interpreter.environment;
+import dlox.interpreter.break_exception;
 
 class Interpreter : Expr.Visitor, Stmt.Visitor
 {
@@ -61,12 +62,18 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
 
     public override Variant visitWhileStmt(Stmt.While stmt)
     {
-        while (isTruthy(evaluate(stmt.condition)))
+        try
         {
-            execute(stmt.body);
+            while (isTruthy(evaluate(stmt.condition))) execute(stmt.body);
         }
+        catch (BreakException e) { }
 
         return Variant(null);
+    }
+
+    public override Variant visitBreakStmt(Stmt.Break stmt)
+    {
+        throw new BreakException();
     }
 
     public override Variant visitPrintStmt(Stmt.Print stmt)
