@@ -35,6 +35,40 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
         return Variant(null);
     }
 
+    public override Variant visitIfStmt(Stmt.If stmt)
+    {
+        if (isTruthy(evaluate(stmt.condition))) execute(stmt.thenBranch);
+        else if (stmt.elseBranch !is null) execute(stmt.elseBranch);
+
+        return Variant(null);
+    }
+
+    public override Variant visitLogicalExpr(Expr.Logical expr)
+    {
+        Variant left = evaluate(expr.left);
+
+        if (expr.operator.type == TokenType.OR)
+        {
+            if (isTruthy(left)) return left;
+        }
+        else
+        {
+            if (!isTruthy(left)) return left;
+        }
+
+        return evaluate(expr.right);
+    }
+
+    public override Variant visitWhileStmt(Stmt.While stmt)
+    {
+        while (isTruthy(evaluate(stmt.condition)))
+        {
+            execute(stmt.body);
+        }
+
+        return Variant(null);
+    }
+
     public override Variant visitPrintStmt(Stmt.Print stmt)
     {
         Variant value = evaluate(stmt.expression);
