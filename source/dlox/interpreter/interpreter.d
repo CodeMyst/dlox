@@ -50,7 +50,7 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
 
     public override Variant visitFunctionStmt(Stmt.Function stmt)
     {
-        Fun fun = new Fun(stmt);
+        Fun fun = new Fun(stmt, environment);
         environment.define(stmt.name.lexeme, Variant(fun));
 
         return Variant(null);
