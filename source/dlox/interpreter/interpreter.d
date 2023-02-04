@@ -102,6 +102,14 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
         throw new BreakException();
     }
 
+    public override Variant visitReturnStmt(Stmt.Return stmt)
+    {
+        Variant value = Variant(null);
+        if (stmt.value !is null) value = evaluate(stmt.value);
+
+        throw new ReturnException(value);
+    }
+
     public override Variant visitPrintStmt(Stmt.Print stmt)
     {
         Variant value = evaluate(stmt.expression);

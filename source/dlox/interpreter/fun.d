@@ -22,8 +22,15 @@ class Fun : Callable
             environment.define(declaration.params[i].lexeme, arguments[i]);
         }
 
-        interpreter.executeBlock(declaration.body, environment);
-        
+        try
+        {
+            interpreter.executeBlock(declaration.body, environment);
+        }
+        catch (ReturnException returnValue)
+        {
+            return returnValue.value;
+        }
+
         return Variant(null);
     }
 
