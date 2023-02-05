@@ -6,3 +6,5 @@ public import dlox.interpreter.callable;
 public import dlox.interpreter.break_exception;
 public import dlox.interpreter.return_exception;
 public import dlox.interpreter.fun;
+public import dlox.interpreter.resolver;
+public import dlox.interpreter.function_type;

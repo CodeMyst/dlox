@@ -15,6 +15,8 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
     public Environment globals = new Environment();
     public Environment environment;
 
+    private int[Expr] locals;
+
     public this()
     {
         environment = globals;
@@ -139,13 +141,22 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
     public override Variant visitAssignExpr(Expr.Assign expr)
     {
         Variant value = evaluate(expr.value);
-        environment.assign(expr.name, value);
+
+        if (expr in locals)
+        {
+            environment.assignAt(locals[expr], expr.name, value);
+        }
+        else
+        {
+            globals.assign(expr.name, value);
+        }
+
         return value;
     }
 
     public override Variant visitVariableExpr(Expr.Variable expr)
     {
-        return environment.get(expr.name);
+        return lookUpVariable(expr.name, expr);
     }
 
     public override Variant visitLiteralExpr(Expr.Literal expr)
@@ -210,44 +221,44 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
             case TokenType.MINUS:
                 checkNumberOperands(expr.operator, left, right);
                 return Variant(left.get!double() - right.get!double());
-            
+
             case TokenType.SLASH:
                 checkNumberOperands(expr.operator, left, right);
                 if (right.get!double == 0) throw new RuntimeError(expr.operator, "Cannot divide by zero.");
                 return Variant(left.get!double() / right.get!double());
-            
+
             case TokenType.STAR:
                 checkNumberOperands(expr.operator, left, right);
                 return Variant(left.get!double() * right.get!double());
-            
+
             case TokenType.PLUS:
                 if (left.peek!double !is null && right.peek!double !is null)
                     return Variant(left.get!double() + right.get!double());
 
                 if (left.peek!string !is null || right.peek!string !is null)
                     return Variant(left.toString() ~ right.toString());
-                
+
                 throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings.");
-            
+
             case TokenType.GREATER:
                 checkNumberOperands(expr.operator, left, right);
                 return Variant(left.get!double() > right.get!double());
-            
+
             case TokenType.GREATER_EQUAL:
                 checkNumberOperands(expr.operator, left, right);
                 return Variant(left.get!double() >= right.get!double());
-            
+
             case TokenType.LESS:
                 checkNumberOperands(expr.operator, left, right);
                 return Variant(left.get!double() < right.get!double());
-            
+
             case TokenType.LESS_EQUAL:
                 checkNumberOperands(expr.operator, left, right);
                 return Variant(left.get!double() <= right.get!double());
 
             case TokenType.BANG_EQUAL: return (!isEqual(left, right)).to!Variant();
             case TokenType.EQUAL_EQUAL: return isEqual(left, right).to!Variant();
-            
+
             default: assert(0);
         }
     }
@@ -260,6 +271,18 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
     private void execute(Stmt stmt)
     {
         stmt.accept(this);
+    }
+
+    public void resolve(Expr expr, int depth)
+    {
+        locals[expr] = depth;
+    }
+
+    private Variant lookUpVariable(Token name, Expr expr)
+    {
+        if (expr !in locals) return globals.get(name);
+
+        return environment.getAt(locals[expr], name.lexeme);
     }
 
     public void executeBlock(Stmt[] statements, Environment environment)
