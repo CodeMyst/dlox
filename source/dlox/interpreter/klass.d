@@ -7,13 +7,15 @@ import dlox.interpreter;
 class Class : Callable
 {
     public string name;
+    private Class superclass;
 
     private Fun[string] methods;
 
-    public this(string name, Fun[string] methods)
+    public this(string name, Class superclass, Fun[string] methods)
     {
         this.name = name;
         this.methods = methods;
+        this.superclass = superclass;
     }
 
     public override Variant call(Interpreter interpreter, Variant[] arguments)
@@ -29,6 +31,8 @@ class Class : Callable
     public Fun findMethod(string name)
     {
         if (name in methods) return methods[name];
+
+        if (superclass !is null) return superclass.findMethod(name);
 
         return null;
     }

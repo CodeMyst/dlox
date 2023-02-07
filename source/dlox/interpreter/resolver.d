@@ -37,6 +37,23 @@ class Resolver : Expr.Visitor, Stmt.Visitor
         declare(stmt.name);
         define(stmt.name);
 
+        if (stmt.superclass !is null && stmt.name.lexeme == stmt.superclass.name.lexeme)
+        {
+            error(stmt.superclass.name, "A class can't inherit from itself.");
+        }
+
+        if (stmt.superclass !is null)
+        {
+            currentClass = ClassType.SUBCLASS;
+            resolve(stmt.superclass);
+        }
+
+        if (stmt.superclass !is null)
+        {
+            beginScope();
+            scopes.back["super"] = true;
+        }
+
         beginScope();
         scopes.back["this"] = true;
 
@@ -49,7 +66,25 @@ class Resolver : Expr.Visitor, Stmt.Visitor
 
         endScope();
 
+        if (stmt.superclass !is null) endScope();
+
         currentClass = enclosingClass;
+
+        return Variant(null);
+    }
+
+    public override Variant visitSuperExpr(Expr.Super expr)
+    {
+        if (currentClass == ClassType.NONE)
+        {
+            error(expr.keyword, "Can't use 'super' outside of a class.");
+        }
+        else if (currentClass != ClassType.SUBCLASS)
+        {
+            error(expr.keyword, "Can't use 'super' in a class with no superclass.");
+        }
+
+        resolveLocal(expr, expr.keyword);
 
         return Variant(null);
     }

@@ -60,7 +60,23 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
 
     public override Variant visitClassStmt(Stmt.Class stmt)
     {
+        Variant superclass = Variant(null);
+        if (stmt.superclass !is null)
+        {
+            superclass = evaluate(stmt.superclass);
+            if (superclass.peek!Class is null)
+            {
+                throw new RuntimeError(stmt.superclass.name, "Superclass must be a class.");
+            }
+        }
+
         environment.define(stmt.name.lexeme, Variant(null));
+
+        if (stmt.superclass !is null)
+        {
+            environment = new Environment(environment);
+            environment.define("super", superclass);
+        }
 
         Fun[string] methods;
         foreach (Stmt.Function method; stmt.methods)
@@ -69,11 +85,34 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
             methods[method.name.lexeme] = fun;
         }
 
-        Class klass = new Class(stmt.name.lexeme, methods);
+        Class superclassObj = superclass.peek!Class is null ? null : superclass.get!Class();
+        Class klass = new Class(stmt.name.lexeme, superclassObj, methods);
+
+        if (superclassObj !is null)
+        {
+            environment = environment.enclosing;
+        }
 
         environment.assign(stmt.name, Variant(klass));
 
         return Variant(null);
+    }
+
+    public override Variant visitSuperExpr(Expr.Super expr)
+    {
+        int distance = locals[expr];
+        Class superclass = environment.getAt(distance, "super").get!Class();
+
+        Instance obj = environment.getAt(distance - 1, "this").get!Instance();
+
+        Fun method = superclass.findMethod(expr.method.lexeme);
+
+        if (method is null)
+        {
+            throw new RuntimeError(expr.method, "Undefined property '" ~ expr.method.lexeme ~ "'.");
+        }
+
+        return Variant(method.bind(obj));
     }
 
     public override Variant visitExpressionStmt(Stmt.Expression stmt)
