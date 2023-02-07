@@ -13,6 +13,7 @@ class Resolver : Expr.Visitor, Stmt.Visitor
     private Interpreter interpreter;
     private bool[string][] scopes;
     private FunctionType currentFunction = FunctionType.NONE;
+    private ClassType currentClass = ClassType.NONE;
 
     public this(Interpreter interpreter)
     {
@@ -24,6 +25,31 @@ class Resolver : Expr.Visitor, Stmt.Visitor
         beginScope();
         resolve(stmt.statements);
         endScope();
+
+        return Variant(null);
+    }
+
+    public override Variant visitClassStmt(Stmt.Class stmt)
+    {
+        ClassType enclosingClass = currentClass;
+        currentClass = ClassType.CLASS;
+
+        declare(stmt.name);
+        define(stmt.name);
+
+        beginScope();
+        scopes.back["this"] = true;
+
+        foreach (Stmt.Function method; stmt.methods)
+        {
+            FunctionType declaration = FunctionType.METHOD;
+            if (method.name.lexeme == "init") declaration = FunctionType.INITIALIZER;
+            resolveFunction(method, declaration);
+        }
+
+        endScope();
+
+        currentClass = enclosingClass;
 
         return Variant(null);
     }
@@ -95,7 +121,14 @@ class Resolver : Expr.Visitor, Stmt.Visitor
     {
         if (currentFunction == FunctionType.NONE) error(stmt.keyword, "Can't return from top-level code.");
 
-        if (stmt.value !is null) resolve(stmt.value);
+        if (stmt.value !is null)
+        {
+            if (currentFunction == FunctionType.INITIALIZER)
+            {
+                error(stmt.keyword, "Can't return a value from an initializer.");
+            }
+            resolve(stmt.value);
+        }
 
         return Variant(null);
     }
@@ -130,6 +163,13 @@ class Resolver : Expr.Visitor, Stmt.Visitor
         return Variant(null);
     }
 
+    public override Variant visitGetExpr(Expr.Get expr)
+    {
+        resolve(expr.object);
+
+        return Variant(null);
+    }
+
     public override Variant visitGroupingExpr(Expr.Grouping expr)
     {
         resolve(expr.expression);
@@ -146,6 +186,27 @@ class Resolver : Expr.Visitor, Stmt.Visitor
     {
         resolve(expr.left);
         resolve(expr.right);
+
+        return Variant(null);
+    }
+
+    public override Variant visitSetExpr(Expr.Set expr)
+    {
+        resolve(expr.value);
+        resolve(expr.object);
+
+        return Variant(null);
+    }
+
+    public override Variant visitThisExpr(Expr.This expr)
+    {
+        if (currentClass == ClassType.NONE)
+        {
+            error(expr.keyword, "Can't use 'this' outside of a class.");
+            return Variant(null);
+        }
+
+        resolveLocal(expr, expr.keyword);
 
         return Variant(null);
     }
@@ -208,7 +269,7 @@ class Resolver : Expr.Visitor, Stmt.Visitor
 
     private void beginScope()
     {
-        scopes ~= new bool[string];
+        scopes.length++;
     }
 
     private void endScope()

@@ -3,5 +3,7 @@ module dlox.interpreter.function_type;
 enum FunctionType
 {
     NONE,
-    FUNCTION
+    FUNCTION,
+    INITIALIZER,
+    METHOD
 }

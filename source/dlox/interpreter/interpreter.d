@@ -52,8 +52,26 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
 
     public override Variant visitFunctionStmt(Stmt.Function stmt)
     {
-        Fun fun = new Fun(stmt, environment);
+        Fun fun = new Fun(stmt, environment, false);
         environment.define(stmt.name.lexeme, Variant(fun));
+
+        return Variant(null);
+    }
+
+    public override Variant visitClassStmt(Stmt.Class stmt)
+    {
+        environment.define(stmt.name.lexeme, Variant(null));
+
+        Fun[string] methods;
+        foreach (Stmt.Function method; stmt.methods)
+        {
+            Fun fun = new Fun(method, environment, method.name.lexeme == "init");
+            methods[method.name.lexeme] = fun;
+        }
+
+        Class klass = new Class(stmt.name.lexeme, methods);
+
+        environment.assign(stmt.name, Variant(klass));
 
         return Variant(null);
     }
@@ -209,6 +227,31 @@ class Interpreter : Expr.Visitor, Stmt.Visitor
         }
 
         return fun.call(this, arguments);
+    }
+
+    public override Variant visitGetExpr(Expr.Get expr)
+    {
+        Variant obj = evaluate(expr.object);
+        if (obj.peek!Instance !is null) return obj.get!Instance().get(expr.name);
+
+        throw new RuntimeError(expr.name, "Only instances have properties.");
+    }
+
+    public override Variant visitSetExpr(Expr.Set expr)
+    {
+        Variant obj = evaluate(expr.object);
+
+        if (obj.peek!Instance is null) throw new RuntimeError(expr.name, "Only instances have fields.");
+
+        Variant value = evaluate(expr.value);
+        obj.get!Instance().set(expr.name, value);
+
+        return value;
+    }
+
+    public override Variant visitThisExpr(Expr.This expr)
+    {
+        return lookUpVariable(expr.keyword, expr);
     }
 
     public override Variant visitBinaryExpr(Expr.Binary expr)

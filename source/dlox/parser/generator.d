@@ -11,15 +11,19 @@ const string[] expressionTypes = [
     "Assign   : Token name, Expr value",
     "Binary   : Expr left, Token operator, Expr right",
     "Call     : Expr callee, Token paren, Expr[] arguments",
+    "Get      : Expr object, Token name",
     "Grouping : Expr expression",
     "Literal  : Variant value",
     "Logical  : Expr left, Token operator, Expr right",
+    "Set      : Expr object, Token name, Expr value",
+    "This     : Token keyword",
     "Unary    : Token operator, Expr right",
     "Variable : Token name"
 ];
 
 const string[] statementTypes = [
     "Block      : Stmt[] statements",
+    "Class      : Token name, Stmt.Function[] methods",
     "Expression : Expr expression",
     "Function   : Token name, Token[] params, Stmt[] body",
     "If         : Expr condition, Stmt thenBranch, Stmt elseBranch",

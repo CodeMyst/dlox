@@ -1,0 +1,8 @@
+class Foo {
+    init(s) {
+        this.epik = s;
+    }
+}
+
+var f = Foo("epik");
+print f.epik;

@@ -9,11 +9,13 @@ class Fun : Callable
 {
     private Stmt.Function declaration;
     private Environment closure;
+    private bool isInitializer;
 
-    public this(Stmt.Function declaration, Environment closure)
+    public this(Stmt.Function declaration, Environment closure, bool isInitializer)
     {
         this.declaration = declaration;
         this.closure = closure;
+        this.isInitializer = isInitializer;
     }
 
     public override Variant call(Interpreter interpreter, Variant[] arguments)
@@ -30,10 +32,22 @@ class Fun : Callable
         }
         catch (ReturnException returnValue)
         {
+            if (isInitializer) return closure.getAt(0, "this");
+
             return returnValue.value;
         }
 
+        if (isInitializer) return closure.getAt(0, "this");
+
         return Variant(null);
+    }
+
+    public Fun bind(Instance instance)
+    {
+        Environment environment = new Environment(closure);
+        environment.define("this", Variant(instance));
+
+        return new Fun(declaration, environment, isInitializer);
     }
 
     public override int arity() => cast(int) declaration.params.length;

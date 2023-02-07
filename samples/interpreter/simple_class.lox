@@ -1,0 +1,21 @@
+class DevonshireCream {
+    serveOn() {
+        return "Scones";
+    }
+}
+
+print DevonshireCream;
+
+var instance = DevonshireCream();
+
+print instance;
+
+print instance.serveOn();
+
+class Bacon {
+    eat() {
+        print "Chewy chewy chewy!";
+    }
+}
+
+Bacon().eat();
