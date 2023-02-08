@@ -6,9 +6,15 @@ import std.typecons;
 import dlox.array;
 import dlox.value;
 
+// TODO: maybe define the CONSTANT_LONG instruction (24bit operand)
 enum OpCode : ubyte
 {
     CONSTANT,
+    ADD,
+    SUBTRACT,
+    MULTIPLY,
+    DIVIDE,
+    NEGATE,
     RETURN
 }
 
@@ -65,7 +71,7 @@ struct Chunk
         }
     }
 
-    private int dissassembleInstruction(int offset)
+    int dissassembleInstruction(int offset)
     {
         printf("%04d ", offset);
 
@@ -75,6 +81,16 @@ struct Chunk
         OpCode instruction = cast(OpCode) data[offset];
         switch (instruction)
         {
+            case OpCode.ADD:
+                return simpleInstruction(OpCode.ADD.stringof, offset);
+            case OpCode.SUBTRACT:
+                return simpleInstruction(OpCode.SUBTRACT.stringof, offset);
+            case OpCode.MULTIPLY:
+                return simpleInstruction(OpCode.MULTIPLY.stringof, offset);
+            case OpCode.DIVIDE:
+                return simpleInstruction(OpCode.DIVIDE.stringof, offset);
+            case OpCode.NEGATE:
+                return simpleInstruction(OpCode.NEGATE.stringof, offset);
             case OpCode.RETURN:
                 return simpleInstruction(OpCode.RETURN.stringof, offset);
             case OpCode.CONSTANT:
