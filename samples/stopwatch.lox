@@ -1,0 +1,38 @@
+class Stopwatch {
+    init() {
+        this.reset();
+    }
+
+    start() {
+        this.startTime = clock();
+    }
+
+    end() {
+        this.endTime = clock();
+    }
+
+    reset() {
+        this.startTime = 0;
+        this.endTime = 0;
+    }
+
+    getTimeElapsed() {
+        return this.endTime - this.startTime;
+    }
+}
+
+fun fib(n) {
+    if (n < 2) return n;
+    return fib(n - 1) + fib(n - 2); 
+}
+
+print "calculating fib(28)";
+
+var sw = Stopwatch();
+sw.start();
+
+print fib(28);
+
+sw.end();
+
+print "elapsed seconds: " + sw.getTimeElapsed();
