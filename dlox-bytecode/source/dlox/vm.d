@@ -61,7 +61,10 @@ struct VM
                 case OpCode.SUBTRACT: binaryOp!"-"(); break;
                 case OpCode.MULTIPLY: binaryOp!"*"(); break;
                 case OpCode.DIVIDE:   binaryOp!"/"(); break;
-                case OpCode.NEGATE:   push(-pop());   break;
+
+                case OpCode.NEGATE: {
+                    *(stackTop - 1) = - *(stackTop - 1);
+                } break;
 
                 case OpCode.RETURN: {
                     printValue(pop());
