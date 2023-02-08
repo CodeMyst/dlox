@@ -2,7 +2,8 @@
 docs.json
 __dummy.html
 docs/
-/dlox
+dlox-bytecode/dlox
+dlox-treewalk/dlox
 dlox.so
 dlox.dylib
 dlox.dll
