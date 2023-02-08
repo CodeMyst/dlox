@@ -28,6 +28,24 @@ struct Array(T)
         return data[index];
     }
 
+    size_t opDollar()
+    {
+        return length;
+    }
+
+    int opApply(scope int delegate(ref T) dg)
+    {
+        int result = 0;
+    
+        foreach (item; data[0..length])
+        {
+            result = dg(item);
+            if (result) break;
+        }
+    
+        return result;
+    }
+
     void free()
     {
         freeArray(data, capacity);

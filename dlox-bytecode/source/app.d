@@ -11,6 +11,11 @@ int main(int argc, const char** argv)
 	chunk ~= tuple(chunk.addConstant(1.2), 123);
 	chunk ~= tuple(OpCode.RETURN, 123);
 
+	chunk ~= tuple(OpCode.CONSTANT, 124);
+	chunk ~= tuple(chunk.addConstant(6.9), 124);
+	chunk ~= tuple(OpCode.RETURN, 124);
+	chunk ~= tuple(OpCode.RETURN, 125);
+
 	chunk.disassemble("test chunk");
 
 	chunk.free();
