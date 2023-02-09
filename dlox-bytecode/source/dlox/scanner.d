@@ -20,7 +20,7 @@ enum TokenType
 struct Token
 {
     TokenType type;
-    const char* start;
+    const(char)* start;
     int length;
     int line;
 }

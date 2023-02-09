@@ -25,15 +25,24 @@ struct VM
 
     InterpretResult interpret(const char* source)
     {
-        compile(source);
-        return InterpretResult.OK;
+        stackTop = stack.ptr;
 
-        // this.chunk = chunk;
-        // ip = chunk.data.ptr;
+        Chunk c;
 
-        // stackTop = stack.ptr;
+        if (!compile(source, &c))
+        {
+            c.free();
+            return InterpretResult.COMPILE_ERROR;
+        }
 
-        // return run();
+        this.chunk = &c;
+        ip = chunk.data.ptr;
+
+        InterpretResult result = run();
+
+        chunk.free();
+
+        return result;
     }
 
     void free()
@@ -62,7 +71,7 @@ struct VM
     {
         while (true)
         {
-            debug(trace)
+            debug(traceExecution)
             {
                 printf("          ");
                 for (Value* slot = stack.ptr; slot < stackTop; slot++)
