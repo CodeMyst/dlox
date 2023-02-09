@@ -4,6 +4,7 @@ import core.stdc.stdio;
 
 import dlox.common;
 import dlox.value;
+import dlox.compiler;
 
 enum STACK_MAX = 256;
 
@@ -22,19 +23,39 @@ struct VM
     Value[STACK_MAX] stack;
     Value* stackTop;
 
-    InterpretResult interpret(Chunk* chunk)
+    InterpretResult interpret(const char* source)
     {
-        this.chunk = chunk;
-        ip = chunk.data.ptr;
+        compile(source);
+        return InterpretResult.OK;
 
-        stackTop = stack.ptr;
+        // this.chunk = chunk;
+        // ip = chunk.data.ptr;
 
-        return run();
+        // stackTop = stack.ptr;
+
+        // return run();
     }
 
     void free()
     {
 
+    }
+
+    void repl()
+    {
+        char[1024] line;
+        while (true)
+        {
+            printf("> ");
+
+            if (!fgets(line.ptr, line.sizeof, stdin))
+            {
+                printf("\n");
+                break;
+            }
+
+            interpret(line.ptr);
+        }
     }
 
     private InterpretResult run()
