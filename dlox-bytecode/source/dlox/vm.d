@@ -85,15 +85,28 @@ struct VM
             }
 
             ubyte instruction;
+            InterpretResult res;
             switch (instruction = readByte())
             {
-                case OpCode.ADD:      binaryOp!"+"(); break;
-                case OpCode.SUBTRACT: binaryOp!"-"(); break;
-                case OpCode.MULTIPLY: binaryOp!"*"(); break;
-                case OpCode.DIVIDE:   binaryOp!"/"(); break;
+                case OpCode.ADD:      res = binaryOp!"+"(); break;
+                case OpCode.SUBTRACT: res = binaryOp!"-"(); break;
+                case OpCode.MULTIPLY: res = binaryOp!"*"(); break;
+                case OpCode.DIVIDE:   res = binaryOp!"/"(); break;
+                case OpCode.GREATER:  res = binaryOp!">"(); break;
+                case OpCode.LESS:     res = binaryOp!"<"(); break;
+
+                case OpCode.NOT: {
+                    push(Value(isFalsey(pop())));
+                } break;
 
                 case OpCode.NEGATE: {
-                    *(stackTop - 1) = - *(stackTop - 1);
+                    if (!isNumber(peek(0)))
+                    {
+                        runtimeError("Operand must be a number.");
+                        return InterpretResult.RUNTIME_ERROR;
+                    }
+
+                    push(Value(-asNumber(pop())));
                 } break;
 
                 case OpCode.RETURN: {
@@ -106,8 +119,20 @@ struct VM
                     push(readConstant());
                 } break;
 
+                case OpCode.NIL: push(Value(null)); break;
+                case OpCode.TRUE: push(Value(true)); break;
+                case OpCode.FALSE: push(Value(false)); break;
+
+                case OpCode.EQUAL: {
+                    Value b = pop();
+                    Value a = pop();
+                    push(Value(valuesEqual(a, b)));
+                } break;
+
                 default: assert(0);
             }
+
+            if (res == InterpretResult.COMPILE_ERROR || res == InterpretResult.RUNTIME_ERROR) return res;
         }
     }
 
@@ -123,18 +148,47 @@ struct VM
         return *stackTop;
     }
 
+    private Value peek(int distance)
+    {
+        return stackTop[-1 - distance];
+    }
+
+    private bool isFalsey(Value value)
+    {
+        return isNil(value) || (isBool(value) && !asBool(value));
+    }
+
+    private void runtimeError(T...)(const char* format, T args)
+    {
+        fprintf(stderr, format, args);
+        fputs("\n", stderr);
+
+        size_t instruction = ip - chunk.data.ptr - 1;
+        int line = chunk.getLine(instruction);
+        fprintf(stderr, "[line %d] in script\n", line);
+
+        stackTop = stack.ptr;
+    }
+
     pragma(inline):
     private ubyte readByte() => *ip++;
 
     pragma(inline):
     private Value readConstant() => chunk.constants[readByte()];
 
-    pragma(inline):
-    private void binaryOp(string op)()
-        if (op == "+" || op == "-" || op == "*" || op == "/")
+    private InterpretResult binaryOp(string op)()
+        if (op == "+" || op == "-" || op == "*" || op == "/" || op == ">" || op == "<")
     {
-        Value b = pop();
-        Value a = pop();
-        mixin("push(a " ~ op ~ " b);");
+        if (!isNumber(peek(0)) || !isNumber(peek(1)))
+        {
+            runtimeError("Operands must be numbers.");
+            return InterpretResult.RUNTIME_ERROR;
+        }
+
+        double b = asNumber(pop());
+        double a = asNumber(pop());
+        mixin("push(Value(a " ~ op ~ " b));");
+
+        return InterpretResult.OK;
     }
 }

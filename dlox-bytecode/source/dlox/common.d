@@ -10,10 +10,17 @@ import dlox.value;
 enum OpCode : ubyte
 {
     CONSTANT,
+    NIL,
+    TRUE,
+    FALSE,
+    EQUAL,
+    GREATER,
+    LESS,
     ADD,
     SUBTRACT,
     MULTIPLY,
     DIVIDE,
+    NOT,
     NEGATE,
     RETURN
 }
@@ -95,13 +102,27 @@ struct Chunk
                 return simpleInstruction(OpCode.RETURN.stringof, offset);
             case OpCode.CONSTANT:
                 return constantInstruction(OpCode.CONSTANT.stringof, offset);
+            case OpCode.NIL:
+                return simpleInstruction(OpCode.NIL.stringof, offset);
+            case OpCode.TRUE:
+                return simpleInstruction(OpCode.TRUE.stringof, offset);
+            case OpCode.FALSE:
+                return simpleInstruction(OpCode.FALSE.stringof, offset);
+            case OpCode.NOT:
+                return simpleInstruction(OpCode.NOT.stringof, offset);
+            case OpCode.EQUAL:
+                return simpleInstruction(OpCode.EQUAL.stringof, offset);
+            case OpCode.GREATER:
+                return simpleInstruction(OpCode.GREATER.stringof, offset);
+            case OpCode.LESS:
+                return simpleInstruction(OpCode.LESS.stringof, offset);
             default:
                 printf("Unknown opcode %d\n", instruction);
                 return offset + 1;
         }
     }
 
-    private int getLine(int offset)
+    public int getLine(ulong offset)
     {
         int lineCounter = 0;
         foreach (line; lines)
