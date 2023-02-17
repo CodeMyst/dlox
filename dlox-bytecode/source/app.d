@@ -7,8 +7,6 @@ import dlox.vm;
 extern(C)
 int main(int argc, const char** argv)
 {
-	VM vm;
-
 	if (argc == 1)
 	{
 		vm.repl();
