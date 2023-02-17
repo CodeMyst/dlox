@@ -1,10 +1,13 @@
 module dlox.vm;
 
 import core.stdc.stdio;
+import core.stdc.string;
 
 import dlox.common;
 import dlox.value;
 import dlox.compiler;
+import dlox.object;
+import dlox.memory;
 
 enum STACK_MAX = 256;
 
@@ -15,6 +18,8 @@ enum InterpretResult
     RUNTIME_ERROR
 }
 
+VM vm;
+
 struct VM
 {
     Chunk* chunk;
@@ -22,6 +27,7 @@ struct VM
 
     Value[STACK_MAX] stack;
     Value* stackTop;
+    Obj* objects = null;
 
     InterpretResult interpret(const char* source)
     {
@@ -47,7 +53,7 @@ struct VM
 
     void free()
     {
-
+        freeObjects();
     }
 
     void repl()
@@ -88,7 +94,24 @@ struct VM
             InterpretResult res;
             switch (instruction = readByte())
             {
-                case OpCode.ADD:      res = binaryOp!"+"(); break;
+                case OpCode.ADD: {
+                    if (isString(peek(0)) && isString(peek(1)))
+                    {
+                        concatenate();
+                    }
+                    else if (isNumber(peek(0)) && isNumber(peek(1)))
+                    {
+                        double b = asNumber(pop());
+                        double a = asNumber(pop());
+                        push(Value(a + b));
+                    }
+                    else
+                    {
+                        runtimeError("Operands must be two numbers or two strings.");
+                        return InterpretResult.RUNTIME_ERROR;
+                    }
+                } break;
+
                 case OpCode.SUBTRACT: res = binaryOp!"-"(); break;
                 case OpCode.MULTIPLY: res = binaryOp!"*"(); break;
                 case OpCode.DIVIDE:   res = binaryOp!"/"(); break;
@@ -156,6 +179,21 @@ struct VM
     private bool isFalsey(Value value)
     {
         return isNil(value) || (isBool(value) && !asBool(value));
+    }
+
+    private void concatenate()
+    {
+        ObjString* b = asString(pop());
+        ObjString* a = asString(pop());
+
+        int length = a.length + b.length;
+        char* chars = allocate!char(length + 1).ptr;
+        memcpy(chars, a.chars, a.length);
+        memcpy(chars + a.length, b.chars, b.length);
+        chars[length] = '\0';
+
+        ObjString* res = takeString(chars, length);
+        push(Value(cast(Obj*) res));
     }
 
     private void runtimeError(T...)(const char* format, T args)

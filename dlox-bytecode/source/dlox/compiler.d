@@ -6,6 +6,7 @@ import std.typecons;
 import dlox.scanner;
 import dlox.common;
 import dlox.value;
+import dlox.object;
 
 struct Parser
 {
@@ -111,6 +112,12 @@ private void number()
     emitConstant(Value(value));
 }
 
+private void string()
+{
+    Obj* obj = cast(Obj*) copyString(parser.previous.start + 1, parser.previous.length - 2);
+    emitConstant(Value(obj));
+}
+
 private void unary()
 {
     TokenType operatorType = parser.previous.type;
@@ -146,7 +153,7 @@ private ParseRule[] rules = [
   TokenType.LESS          : ParseRule(null,      &binary, Precedence.COMPARISON),
   TokenType.LESS_EQUAL    : ParseRule(null,      &binary, Precedence.COMPARISON),
   TokenType.IDENTIFIER    : ParseRule(null,      null,    Precedence.NONE),
-  TokenType.STRING        : ParseRule(null,      null,    Precedence.NONE),
+  TokenType.STRING        : ParseRule(&string,   null,    Precedence.NONE),
   TokenType.NUMBER        : ParseRule(&number,   null,    Precedence.NONE),
   TokenType.AND           : ParseRule(null,      null,    Precedence.NONE),
   TokenType.CLASS         : ParseRule(null,      null,    Precedence.NONE),
