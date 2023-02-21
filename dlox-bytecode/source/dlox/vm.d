@@ -8,6 +8,7 @@ import dlox.value;
 import dlox.compiler;
 import dlox.object;
 import dlox.memory;
+import dlox.table;
 
 enum STACK_MAX = 256;
 
@@ -27,6 +28,7 @@ struct VM
 
     Value[STACK_MAX] stack;
     Value* stackTop;
+    Table strings;
     Obj* objects = null;
 
     InterpretResult interpret(const char* source)
@@ -42,7 +44,7 @@ struct VM
         }
 
         this.chunk = &c;
-        ip = chunk.data.ptr;
+        ip = chunk.data;
 
         InterpretResult result = run();
 
@@ -53,6 +55,7 @@ struct VM
 
     void free()
     {
+        strings.free();
         freeObjects();
     }
 
@@ -95,6 +98,7 @@ struct VM
             switch (instruction = readByte())
             {
                 case OpCode.ADD: {
+                    // TODO: Adding numbers and strings
                     if (isString(peek(0)) && isString(peek(1)))
                     {
                         concatenate();
@@ -187,7 +191,7 @@ struct VM
         ObjString* a = asString(pop());
 
         int length = a.length + b.length;
-        char* chars = allocate!char(length + 1).ptr;
+        char* chars = allocate!char(length + 1);
         memcpy(chars, a.chars, a.length);
         memcpy(chars + a.length, b.chars, b.length);
         chars[length] = '\0';
@@ -201,7 +205,7 @@ struct VM
         fprintf(stderr, format, args);
         fputs("\n", stderr);
 
-        size_t instruction = ip - chunk.data.ptr - 1;
+        size_t instruction = ip - chunk.data - 1;
         int line = chunk.getLine(instruction);
         fprintf(stderr, "[line %d] in script\n", line);
 

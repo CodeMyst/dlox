@@ -84,16 +84,5 @@ Obj* asObj(Value value)
 
 bool valuesEqual(Value a, Value b)
 {
-    import core.stdc.string : memcmp;
-
-    if (isObj(a) && isObj(b))
-    {
-        ObjString* aStr = asString(a);
-        ObjString* bStr = asString(b);
-
-        return aStr.length == bStr.length &&
-            memcmp(aStr.chars, bStr.chars, aStr.length) == 0;
-    }
-
     return a == b;
 }

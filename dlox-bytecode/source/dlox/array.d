@@ -6,7 +6,7 @@ struct Array(T)
 {
     int length;
     int capacity;
-    T[] data;
+    T* data;
 
     auto opOpAssign(string op : "~")(const T rhs)
     {
@@ -36,13 +36,13 @@ struct Array(T)
     int opApply(scope int delegate(ref T) dg)
     {
         int result = 0;
-    
+
         foreach (item; data[0..length])
         {
             result = dg(item);
             if (result) break;
         }
-    
+
         return result;
     }
 

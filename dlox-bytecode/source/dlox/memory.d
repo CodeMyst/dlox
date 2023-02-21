@@ -10,33 +10,33 @@ int growCapacity(int capacity)
     return capacity < 8 ? 8 : capacity * 2;
 }
 
-T[] growArray(T)(T[] arr, int oldCount, int newCount)
+T* growArray(T)(T* arr, int oldCount, int newCount)
 {
     return reallocate!T(arr, T.sizeof * oldCount, T.sizeof * newCount);
 }
 
-void freeArray(T)(T[] arr, int oldCount)
+void freeArray(T)(T* arr, int oldCount)
 {
     reallocate(arr, T.sizeof * oldCount, 0);
 }
 
-T[] reallocate(T)(T[] arr, size_t oldSize, size_t newSize)
+T* reallocate(T)(T* arr, size_t oldSize, size_t newSize)
 {
     // TODO: maybe try and implement this without malloc and free :)
 
     if (newSize == 0)
     {
-        free(arr.ptr);
+        free(arr);
         return null;
     }
 
-    void* res = realloc(arr.ptr, newSize);
+    void* res = realloc(arr, newSize);
     if (res is null) exit(137);
 
-    return cast(T[]) res[0..newSize];
+    return cast(T*) res;
 }
 
-T[] allocate(T)(size_t count)
+T* allocate(T)(size_t count)
 {
     return reallocate!T(null, 0, T.sizeof * count);
 }
@@ -58,8 +58,8 @@ void freeObject(Obj* object)
     {
         case ObjType.STRING: {
             ObjString* string = cast(ObjString*) object;
-            freeArray!char(string.chars[0..string.length], string.length + 1);
-            reallocate!ObjString(string[0..ObjString.sizeof - 1], ObjString.sizeof, 0);
+            freeArray!char(string.chars, string.length + 1);
+            reallocate!ObjString(string, ObjString.sizeof, 0);
         } break;
 
         default: assert(0);

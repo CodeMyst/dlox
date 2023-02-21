@@ -6,6 +6,7 @@ import core.stdc.string;
 import dlox.value;
 import dlox.memory;
 import dlox.vm;
+import dlox.table;
 
 enum ObjType
 {
@@ -25,6 +26,7 @@ struct ObjString
 
     int length;
     char* chars;
+    uint hash;
 }
 
 ObjType objType(Value value)
@@ -54,29 +56,56 @@ char* asStringz(Value value)
 
 ObjString* copyString(const char* chars, int length)
 {
-    char* heapChars = allocate!char(length + 1).ptr;
+    uint hash = hashString(chars, length);
+    ObjString* interned = vm.strings.findString(chars, length, hash);
+    if (interned !is null) return interned;
+    char* heapChars = allocate!char(length + 1);
     memcpy(heapChars, chars, length);
     heapChars[length] = '\0';
 
-    return allocateString(heapChars, length);
+    return allocateString(heapChars, length, hash);
 }
 
 ObjString* takeString(char* chars, int length)
 {
-    return allocateString(chars, length);
+    uint hash = hashString(chars, length);
+    ObjString* interned = vm.strings.findString(chars, length, hash);
+
+    if (interned !is null)
+    {
+        freeArray!char(chars, length + 1);
+        return interned;
+    }
+
+    return allocateString(chars, length, hash);
 }
 
-ObjString* allocateString(char* chars, int length)
+ObjString* allocateString(char* chars, int length, uint hash)
 {
     ObjString* string = allocateObject!ObjString(ObjType.STRING);
     string.length = length;
     string.chars = chars;
+    string.hash = hash;
+    vm.strings.set(string, Value(null));
     return string;
+}
+
+uint hashString(const char* key, int length)
+{
+    uint hash = 2_166_136_261u;
+
+    for (int i = 0; i < length; i++)
+    {
+        hash ^= cast(uint) key[i];
+        hash *= 16_777_619;
+    }
+
+    return hash;
 }
 
 T* allocateObject(T)(ObjType type)
 {
-    Obj* object = reallocate!Obj(null, 1, T.sizeof).ptr;
+    Obj* object = reallocate!Obj(null, 0, T.sizeof);
     object.type = type;
 
     object.next = vm.objects;
