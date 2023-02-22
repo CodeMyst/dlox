@@ -28,6 +28,7 @@ struct VM
 
     Value[STACK_MAX] stack;
     Value* stackTop;
+    Table globals;
     Table strings;
     Obj* objects = null;
 
@@ -55,6 +56,7 @@ struct VM
 
     void free()
     {
+        globals.free();
         strings.free();
         freeObjects();
     }
@@ -136,9 +138,12 @@ struct VM
                     push(Value(-asNumber(pop())));
                 } break;
 
-                case OpCode.RETURN: {
+                case OpCode.PRINT: {
                     printValue(pop());
                     printf("\n");
+                } break;
+
+                case OpCode.RETURN: {
                     return InterpretResult.OK;
                 }
 
@@ -149,6 +154,34 @@ struct VM
                 case OpCode.NIL: push(Value(null)); break;
                 case OpCode.TRUE: push(Value(true)); break;
                 case OpCode.FALSE: push(Value(false)); break;
+                case OpCode.POP: pop(); break;
+
+                case OpCode.GET_GLOBAL: {
+                    ObjString* name = readString();
+                    Value value;
+                    if (!vm.globals.get(name, &value))
+                    {
+                        runtimeError("Undefined variable '%s'.", name.chars);
+                        return InterpretResult.RUNTIME_ERROR;
+                    }
+                    push(value);
+                } break;
+
+                case OpCode.DEFINE_GLOBAL: {
+                    ObjString* name = readString();
+                    vm.globals.set(name, peek(0));
+                    pop();
+                } break;
+
+                case OpCode.SET_GLOBAL: {
+                    ObjString* name = readString();
+                    if (vm.globals.set(name, peek(0)))
+                    {
+                        vm.globals.remove(name);
+                        runtimeError("Undefined variable '%s'.", name.chars);
+                        return InterpretResult.RUNTIME_ERROR;
+                    }
+                } break;
 
                 case OpCode.EQUAL: {
                     Value b = pop();
@@ -217,6 +250,9 @@ struct VM
 
     pragma(inline):
     private Value readConstant() => chunk.constants[readByte()];
+
+    pragma(inline):
+    private ObjString* readString() => asString(readConstant());
 
     private InterpretResult binaryOp(string op)()
         if (op == "+" || op == "-" || op == "*" || op == "/" || op == ">" || op == "<")

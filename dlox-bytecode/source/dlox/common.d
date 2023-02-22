@@ -13,6 +13,10 @@ enum OpCode : ubyte
     NIL,
     TRUE,
     FALSE,
+    POP,
+    GET_GLOBAL,
+    DEFINE_GLOBAL,
+    SET_GLOBAL,
     EQUAL,
     GREATER,
     LESS,
@@ -22,6 +26,7 @@ enum OpCode : ubyte
     DIVIDE,
     NOT,
     NEGATE,
+    PRINT,
     RETURN
 }
 
@@ -116,6 +121,16 @@ struct Chunk
                 return simpleInstruction(OpCode.GREATER.stringof, offset);
             case OpCode.LESS:
                 return simpleInstruction(OpCode.LESS.stringof, offset);
+            case OpCode.PRINT:
+                return simpleInstruction(OpCode.PRINT.stringof, offset);
+            case OpCode.POP:
+                return simpleInstruction(OpCode.POP.stringof, offset);
+            case OpCode.DEFINE_GLOBAL:
+                return constantInstruction(OpCode.DEFINE_GLOBAL.stringof, offset);
+            case OpCode.GET_GLOBAL:
+                return constantInstruction(OpCode.GET_GLOBAL.stringof, offset);
+            case OpCode.SET_GLOBAL:
+                return constantInstruction(OpCode.SET_GLOBAL.stringof, offset);
             default:
                 printf("Unknown opcode %d\n", instruction);
                 return offset + 1;

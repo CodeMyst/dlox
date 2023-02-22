@@ -38,7 +38,7 @@ struct ParseRule
     Precedence precedence;
 }
 
-alias ParseFn = void function();
+alias ParseFn = void function(bool);
 
 private Parser parser;
 private Scanner scanner;
@@ -49,8 +49,12 @@ bool compile(const char* source, Chunk* chunk)
     scanner = Scanner(source);
     compilingChunk = chunk;
     advance();
-    expression();
-    consume(TokenType.EOF, "Expect end of expression.");
+
+    while (!match(TokenType.EOF))
+    {
+        declaration();
+    }
+
     endCompiler();
     return !parser.hadError;
 }
@@ -59,52 +63,81 @@ private void endCompiler()
 {
     emitReturn();
 
-    debug(printCode)
+    debug (printCode)
     {
-        if (!parser.hadError) currentChunk().disassemble("code");
+        if (!parser.hadError)
+            currentChunk().disassemble("code");
     }
 }
 
-private void binary()
+private void binary(bool _)
 {
     TokenType operatorType = parser.previous.type;
     ParseRule* rule = getRule(operatorType);
-    parsePrecedence(cast(Precedence) (rule.precedence + 1));
+    parsePrecedence(cast(Precedence)(rule.precedence + 1));
 
     switch (operatorType)
     {
-        case TokenType.BANG_EQUAL: emitBytes(OpCode.EQUAL, OpCode.NOT); break;
-        case TokenType.EQUAL_EQUAL: emitByte(OpCode.EQUAL); break;
-        case TokenType.GREATER: emitByte(OpCode.GREATER); break;
-        case TokenType.GREATER_EQUAL: emitBytes(OpCode.LESS, OpCode.NOT); break;
-        case TokenType.LESS: emitByte(OpCode.LESS); break;
-        case TokenType.LESS_EQUAL: emitBytes(OpCode.GREATER, OpCode.NOT); break;
-        case TokenType.PLUS: emitByte(OpCode.ADD); break;
-        case TokenType.MINUS: emitByte(OpCode.SUBTRACT); break;
-        case TokenType.STAR: emitByte(OpCode.MULTIPLY); break;
-        case TokenType.SLASH: emitByte(OpCode.DIVIDE); break;
-        default: assert(0);
+    case TokenType.BANG_EQUAL:
+        emitBytes(OpCode.EQUAL, OpCode.NOT);
+        break;
+    case TokenType.EQUAL_EQUAL:
+        emitByte(OpCode.EQUAL);
+        break;
+    case TokenType.GREATER:
+        emitByte(OpCode.GREATER);
+        break;
+    case TokenType.GREATER_EQUAL:
+        emitBytes(OpCode.LESS, OpCode.NOT);
+        break;
+    case TokenType.LESS:
+        emitByte(OpCode.LESS);
+        break;
+    case TokenType.LESS_EQUAL:
+        emitBytes(OpCode.GREATER, OpCode.NOT);
+        break;
+    case TokenType.PLUS:
+        emitByte(OpCode.ADD);
+        break;
+    case TokenType.MINUS:
+        emitByte(OpCode.SUBTRACT);
+        break;
+    case TokenType.STAR:
+        emitByte(OpCode.MULTIPLY);
+        break;
+    case TokenType.SLASH:
+        emitByte(OpCode.DIVIDE);
+        break;
+    default:
+        assert(0);
     }
 }
 
-private void literal()
+private void literal(bool _)
 {
     switch (parser.previous.type)
     {
-        case TokenType.FALSE: emitByte(OpCode.FALSE); break;
-        case TokenType.NIL: emitByte(OpCode.NIL); break;
-        case TokenType.TRUE: emitByte(OpCode.TRUE); break;
-        default: assert(0);
+    case TokenType.FALSE:
+        emitByte(OpCode.FALSE);
+        break;
+    case TokenType.NIL:
+        emitByte(OpCode.NIL);
+        break;
+    case TokenType.TRUE:
+        emitByte(OpCode.TRUE);
+        break;
+    default:
+        assert(0);
     }
 }
 
-private void grouping()
+private void grouping(bool _)
 {
     expression();
     consume(TokenType.RIGHT_PAREN, "Expect ')' after expression.");
 }
 
-private void number()
+private void number(bool _)
 {
     import core.stdc.stdlib : strtod;
 
@@ -112,13 +145,33 @@ private void number()
     emitConstant(Value(value));
 }
 
-private void string()
+private void string(bool _)
 {
     Obj* obj = cast(Obj*) copyString(parser.previous.start + 1, parser.previous.length - 2);
     emitConstant(Value(obj));
 }
 
-private void unary()
+private void namedVariable(Token name, bool canAssign)
+{
+    ubyte arg = identifierConstant(&name);
+
+    if (canAssign && match(TokenType.EQUAL))
+    {
+        expression();
+        emitBytes(OpCode.SET_GLOBAL, arg);
+    }
+    else
+    {
+        emitBytes(OpCode.GET_GLOBAL, arg);
+    }
+}
+
+private void variable(bool canAssign)
+{
+    namedVariable(parser.previous, canAssign);
+}
+
+private void unary(bool _)
 {
     TokenType operatorType = parser.previous.type;
 
@@ -126,9 +179,14 @@ private void unary()
 
     switch (operatorType)
     {
-        case TokenType.BANG: emitByte(OpCode.NOT); break;
-        case TokenType.MINUS: emitByte(OpCode.NEGATE); break;
-        default: assert(0);
+    case TokenType.BANG:
+        emitByte(OpCode.NOT);
+        break;
+    case TokenType.MINUS:
+        emitByte(OpCode.NEGATE);
+        break;
+    default:
+        assert(0);
     }
 }
 
@@ -152,7 +210,7 @@ private ParseRule[] rules = [
   TokenType.GREATER_EQUAL : ParseRule(null,      &binary, Precedence.COMPARISON),
   TokenType.LESS          : ParseRule(null,      &binary, Precedence.COMPARISON),
   TokenType.LESS_EQUAL    : ParseRule(null,      &binary, Precedence.COMPARISON),
-  TokenType.IDENTIFIER    : ParseRule(null,      null,    Precedence.NONE),
+  TokenType.IDENTIFIER    : ParseRule(&variable, null,    Precedence.NONE),
   TokenType.STRING        : ParseRule(&string,   null,    Precedence.NONE),
   TokenType.NUMBER        : ParseRule(&number,   null,    Precedence.NONE),
   TokenType.AND           : ParseRule(null,      null,    Precedence.NONE),
@@ -185,14 +243,36 @@ private void parsePrecedence(Precedence precedence)
         return;
     }
 
-    prefixRule();
+    bool canAssign = precedence <= Precedence.ASSIGNMENT;
+    prefixRule(canAssign);
 
     while (precedence <= getRule(parser.current.type).precedence)
     {
         advance();
         ParseFn infixRule = getRule(parser.previous.type).infix;
-        infixRule();
+        infixRule(canAssign);
     }
+
+    if (canAssign && match(TokenType.EQUAL))
+    {
+        error("Invalid assignment target.");
+    }
+}
+
+private ubyte identifierConstant(Token* name)
+{
+    return makeConstant(Value(cast(Obj*) copyString(name.start, name.length)));
+}
+
+private ubyte parseVariable(const char* errorMessage)
+{
+    consume(TokenType.IDENTIFIER, errorMessage);
+    return identifierConstant(&parser.previous);
+}
+
+private void defineVariable(ubyte global)
+{
+    emitBytes(OpCode.DEFINE_GLOBAL, global);
 }
 
 private ParseRule* getRule(TokenType type)
@@ -203,6 +283,91 @@ private ParseRule* getRule(TokenType type)
 private void expression()
 {
     parsePrecedence(Precedence.ASSIGNMENT);
+}
+
+private void varDeclaration()
+{
+    ubyte global = parseVariable("Expect variable name.");
+
+    if (match(TokenType.EQUAL))
+    {
+        expression();
+    }
+    else
+    {
+        emitByte(OpCode.NIL);
+    }
+
+    consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.");
+
+    defineVariable(global);
+}
+
+private void expressionStatement()
+{
+    expression();
+    consume(TokenType.SEMICOLON, "Expect ';' after expression.");
+    emitByte(OpCode.POP);
+}
+
+private void printStatement()
+{
+    expression();
+    consume(TokenType.SEMICOLON, "Expect ';' after value.");
+    emitByte(OpCode.PRINT);
+}
+
+private void synchronize()
+{
+    parser.panicMode = false;
+
+    while (parser.current.type != TokenType.EOF)
+    {
+        if (parser.previous.type == TokenType.SEMICOLON) return;
+
+        switch (parser.current.type)
+        {
+            case TokenType.CLASS:
+            case TokenType.FUN:
+            case TokenType.VAR:
+            case TokenType.FOR:
+            case TokenType.IF:
+            case TokenType.WHILE:
+            case TokenType.PRINT:
+            case TokenType.RETURN:
+                return;
+
+            default: break;
+        }
+
+        advance();
+    }
+}
+
+private void declaration()
+{
+    if (match(TokenType.VAR))
+    {
+        varDeclaration();
+    }
+    else
+    {
+        statement();
+    }
+
+    if (parser.panicMode) synchronize();
+}
+
+private void statement()
+{
+    if (match(TokenType.PRINT))
+    {
+        printStatement();
+    }
+    else
+    {
+        expressionStatement();
+    }
 }
 
 private Chunk* currentChunk()
@@ -217,7 +382,8 @@ private void advance()
     while (true)
     {
         parser.current = scanner.scanToken();
-        if (parser.current.type != TokenType.ERROR) break;
+        if (parser.current.type != TokenType.ERROR)
+            break;
 
         errorAtCurrent(parser.current.start);
     }
@@ -232,6 +398,18 @@ private void consume(TokenType type, const char* message)
     }
 
     errorAtCurrent(message);
+}
+
+private bool check(TokenType type)
+{
+    return parser.current.type == type;
+}
+
+private bool match(TokenType type)
+{
+    if (!check(type)) return false;
+    advance();
+    return true;
 }
 
 private void emitByte(ubyte b)
@@ -279,7 +457,8 @@ private void error(const char* message)
 
 private void errorAt(Token* token, const char* message)
 {
-    if (parser.panicMode) return;
+    if (parser.panicMode)
+        return;
     parser.panicMode = true;
 
     fprintf(stderr, "[line %d] Error", token.line);

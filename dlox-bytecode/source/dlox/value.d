@@ -69,7 +69,7 @@ bool isObj(Value value)
     return value.match!(
         (bool _) => false,
         (typeof(null) _) => false,
-        (double _) => true,
+        (double _) => false,
         (Obj* _) => true
     );
 }
