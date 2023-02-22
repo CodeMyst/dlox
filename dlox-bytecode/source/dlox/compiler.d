@@ -38,15 +38,31 @@ struct ParseRule
     Precedence precedence;
 }
 
+struct Local
+{
+    Token name;
+    int depth;
+}
+
+struct Compiler
+{
+    Local[ubyte.max + 1] locals;
+    int localCount;
+    int scopeDepth;
+}
+
 alias ParseFn = void function(bool);
 
 private Parser parser;
 private Scanner scanner;
+private Compiler* current = null;
 private Chunk* compilingChunk;
 
 bool compile(const char* source, Chunk* chunk)
 {
     scanner = Scanner(source);
+    Compiler compiler;
+    initCompiler(&compiler);
     compilingChunk = chunk;
     advance();
 
@@ -67,6 +83,23 @@ private void endCompiler()
     {
         if (!parser.hadError)
             currentChunk().disassemble("code");
+    }
+}
+
+private void beginScope()
+{
+    current.scopeDepth++;
+}
+
+private void endScope()
+{
+    current.scopeDepth--;
+
+    while (current.localCount > 0 &&
+            current.locals[current.localCount - 1].depth > current.scopeDepth)
+    {
+        emitByte(OpCode.POP);
+        current.localCount--;
     }
 }
 
@@ -153,16 +186,29 @@ private void string(bool _)
 
 private void namedVariable(Token name, bool canAssign)
 {
-    ubyte arg = identifierConstant(&name);
+    ubyte getOp;
+    ubyte setOp;
+    int arg = resolveLocal(current, &name);
+    if (arg != -1)
+    {
+        getOp = OpCode.GET_LOCAL;
+        setOp = OpCode.SET_LOCAL;
+    }
+    else
+    {
+        arg = identifierConstant(&name);
+        getOp = OpCode.GET_GLOBAL;
+        setOp = OpCode.SET_GLOBAL;
+    }
 
     if (canAssign && match(TokenType.EQUAL))
     {
         expression();
-        emitBytes(OpCode.SET_GLOBAL, arg);
+        emitBytes(OpCode.SET_GLOBAL, cast(ubyte) arg);
     }
     else
     {
-        emitBytes(OpCode.GET_GLOBAL, arg);
+        emitBytes(OpCode.GET_GLOBAL, cast(ubyte) arg);
     }
 }
 
@@ -264,14 +310,93 @@ private ubyte identifierConstant(Token* name)
     return makeConstant(Value(cast(Obj*) copyString(name.start, name.length)));
 }
 
+private bool identifiersEqual(Token* a, Token* b)
+{
+    import core.stdc.string : memcmp;
+
+    if (a.length != b.length) return false;
+
+    return memcmp(a.start, b.start, a.length) == 0;
+}
+
+private int resolveLocal(Compiler* compiler, Token* name)
+{
+    for (int i = compiler.localCount - 1; i >= 0; i--)
+    {
+        Local* local = &compiler.locals[i];
+        if (identifiersEqual(name, &local.name))
+        {
+            if (local.depth == -1)
+            {
+                error("Can't read local variable in its own initializer.");
+            }
+
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+private void addLocal(Token name)
+{
+    if (current.localCount == ubyte.max + 1)
+    {
+        error("Too many local variables in function.");
+        return;
+    }
+
+    Local* local = &current.locals[current.localCount++];
+    local.name = name;
+    local.depth = -1;
+}
+
+private void declareVariable()
+{
+    if (current.scopeDepth == 0) return;
+
+    Token* name = &parser.previous;
+
+    for (int i = current.localCount - 1; i >= 0; i--)
+    {
+        Local* local = &current.locals[i];
+        if (local.depth != -1 && local.depth < current.scopeDepth)
+        {
+            break;
+        }
+
+        if (identifiersEqual(name, &local.name))
+        {
+            error("Already a variable with this name in this scope.");
+        }
+    }
+
+    addLocal(*name);
+}
+
 private ubyte parseVariable(const char* errorMessage)
 {
     consume(TokenType.IDENTIFIER, errorMessage);
+
+    declareVariable();
+    if (current.scopeDepth > 0) return 0;
+
     return identifierConstant(&parser.previous);
+}
+
+private void markInitialized()
+{
+    current.locals[current.localCount - 1].depth = current.scopeDepth;
 }
 
 private void defineVariable(ubyte global)
 {
+    if (current.scopeDepth > 0)
+    {
+        markInitialized();
+        return;
+    }
+
     emitBytes(OpCode.DEFINE_GLOBAL, global);
 }
 
@@ -283,6 +408,16 @@ private ParseRule* getRule(TokenType type)
 private void expression()
 {
     parsePrecedence(Precedence.ASSIGNMENT);
+}
+
+private void block()
+{
+    while (!check(TokenType.RIGHT_BRACE) && !check(TokenType.EOF))
+    {
+        declaration();
+    }
+
+    consume(TokenType.RIGHT_BRACE, "Expect '}' after block.");
 }
 
 private void varDeclaration()
@@ -364,6 +499,12 @@ private void statement()
     {
         printStatement();
     }
+    else if (match(TokenType.LEFT_BRACE))
+    {
+        beginScope();
+        block();
+        endScope();
+    }
     else
     {
         expressionStatement();
@@ -431,6 +572,13 @@ private void emitReturn()
 private void emitConstant(Value value)
 {
     emitBytes(OpCode.CONSTANT, makeConstant(value));
+}
+
+private void initCompiler(Compiler* compiler)
+{
+    compiler.localCount = 0;
+    compiler.scopeDepth = 0;
+    current = compiler;
 }
 
 private ubyte makeConstant(Value value)

@@ -156,6 +156,16 @@ struct VM
                 case OpCode.FALSE: push(Value(false)); break;
                 case OpCode.POP: pop(); break;
 
+                case OpCode.GET_LOCAL: {
+                    ubyte slot = readByte();
+                    push(vm.stack[slot]);
+                } break;
+
+                case OpCode.SET_LOCAL: {
+                    ubyte slot = readByte();
+                    vm.stack[slot] = peek(0);
+                } break;
+
                 case OpCode.GET_GLOBAL: {
                     ObjString* name = readString();
                     Value value;

@@ -14,6 +14,8 @@ enum OpCode : ubyte
     TRUE,
     FALSE,
     POP,
+    GET_LOCAL,
+    SET_LOCAL,
     GET_GLOBAL,
     DEFINE_GLOBAL,
     SET_GLOBAL,
@@ -131,6 +133,10 @@ struct Chunk
                 return constantInstruction(OpCode.GET_GLOBAL.stringof, offset);
             case OpCode.SET_GLOBAL:
                 return constantInstruction(OpCode.SET_GLOBAL.stringof, offset);
+            case OpCode.GET_LOCAL:
+                return byteInstruction(OpCode.GET_LOCAL.stringof, offset);
+            case OpCode.SET_LOCAL:
+                return byteInstruction(OpCode.SET_LOCAL.stringof, offset);
             default:
                 printf("Unknown opcode %d\n", instruction);
                 return offset + 1;
@@ -154,6 +160,13 @@ struct Chunk
     {
         printf("%s\n", name);
         return offset + 1;
+    }
+
+    private int byteInstruction(const char* name, int offset)
+    {
+        ubyte slot = data[offset + 1];
+        printf("%-16s %4d\n", name, slot);
+        return offset + 2;
     }
 
     private int constantInstruction(const char* name, int offset)
